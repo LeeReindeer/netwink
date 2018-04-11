@@ -1,0 +1,31 @@
+#ifndef _input_h
+#define _input_h
+
+#include <ctype.h>
+#include <getopt.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+#define MAX_STR_INPUT 20
+#define NO_ARG_OPS 4
+#define ARG_OPS 5
+
+#define INTERFACE_NUM 0
+#define PORT_NUM 1
+#define IP_NUM 2
+#define PROTOCOL_NUM 3
+#define SAVE_NUM 4
+
+extern const char *short_opt;
+extern struct option long_opt[];
+
+int handle_input(int argc, char *argv[], char *out[], int *flags);
+
+int valid_argument(char *arg);
+
+uint32_t ipton(char *ip4);
+uint32_t porton(char *port);
+
+char *strlwr(char *in);
+
+#endif // MACRO
