@@ -167,15 +167,14 @@ error:
 
 int handle_promiscuos(int sockfd) {
   char **interfaces;
-  int in_size = 0;
+  int in_size = 0, rc = 0;
   /*获取所有在使用的网卡名称*/
   interfaces = get_all_interface(&in_size);
   check(interfaces != NULL, "interface error");
   for (int i = 0; i < in_size; ++i) {
-    // todo
     /* 设置网卡为兼容模式*/
-    // rc = make_promiscuos(listenfd, interfaces[i]);
-    // check(rc != -1, "promiscuos error");
+    rc = make_promiscuos(sockfd, interfaces[i]);
+    check(rc != -1, "promiscuos error");
   }
   free(interfaces);
   return 0;
@@ -257,18 +256,6 @@ error:
   exit(1);
 }
 
-// void ctrlc_cb(evutil_socket_t sig, short events, void *arg) {
-//   struct event_base *base = arg;
-//   // struct timeval two_sec = {1, 0};
-
-//   event_base_loopexit(base, NULL);
-// }
-
-// void read_cb(evutil_socket_t sockfd, short events, void *arg) {
-//   log_d("read callback");
-//   sniffer(sockfd, arg);
-// }
-
 int init_socket(int *sockfd) {
   char *protocal = arguments[PROTOCOL_NUM];
   char *ip = arguments[IP_NUM];
@@ -345,33 +332,13 @@ int main(int argc, char *argv[]) {
   check(rc != -1, "input error");
   /* handle input end*/
 
-  // struct event_base *base;
-  // struct event *read_event;
-  // evutil_socket_t sockfd;
   int sockfd;
 
   rc = init_socket(&sockfd);
   check(rc != -1, "socket error");
 
-  // base = event_base_new();
-  // check(base, "base init error");
-
-  // so how to handle signal rightly in libevent?
   signal(SIGINT, intHandler);
   sniffer(sockfd, NULL);
-  // exit_event = evsignal_new(base, SIGINT, ctrlc_cb, (void *)base);
-  // check(exit_event && (!evsignal_add(exit_event, NULL)), "signal event
-  // error");
-
-  // read_event =
-  //     event_new(base, sockfd, EV_READ | EV_PERSIST, read_cb, (void *)base);
-  // check(read_event && (!event_add(read_event, NULL)), "read event error");
-
-  // // loop events
-  // event_base_dispatch(base);
-  // // event_free(exit_event);
-  // event_free(read_event);
-  // event_base_free(base);
   return 0;
 
 error:

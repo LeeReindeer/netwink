@@ -28,4 +28,4 @@ uint32_t porton(char *port);
 
 char *strlwr(char *in);
 
-#endif // MACRO
+#endif // _input_h

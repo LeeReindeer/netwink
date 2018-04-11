@@ -15,50 +15,6 @@ struct option long_opt[] = {{"interface", required_argument, NULL, 'f'},
                             {"help", no_argument, NULL, 'h'},
                             {NULL, 0, NULL, 0}};
 
-// int main(int argc, char **argv) {
-//   //
-//   char *ip = "192.168.9.11";
-//   char *iip1 = "192.100.100.100.100";
-//   char *iip2 = "127.0.0.256";
-
-//   char *port = "5001";
-//   printf("IP: \"%s\" is %x\n", ip, ipton(ip));
-//   printf("IP: \"%s\" is %x\n", iip1, ipton(iip1));
-//   printf("IP: \"%s\" is %x\n", iip2, ipton(iip2));
-//   printf("PORT: \"%s\" is %x\n", port, porton(port));
-
-//   int i;
-//   char *out[5];
-//   for (i = 0; i < 5; i++) {
-//     out[i] = malloc(sizeof(char) * 20);
-//   }
-//   int flag[4];
-//   for (i = 0; i < 4; i++) {
-//     flag[i] = 0;
-//   }
-//   int rc = handle_input(argc, argv, out, flag);
-//   if (rc == -1) {
-//     return -1;
-//   }
-
-//   printf("arguments:\n");
-//   for (i = 0; i < 5; i++) {
-//     if (valid_argument(out[i])) {
-//       if (!strcmp(out[i], "tcp")) {
-//         printf("TCP HAHA\n");
-//       }
-//       printf("%s: %s\n", long_opt[i].name, out[i]);
-//     }
-//   }
-
-//   printf("flags:\n");
-//   for (i = 0; i < 4; i++) {
-//     if (flag[i]) {
-//       printf("%s\n", long_opt[i + 4].name);
-//     }
-//   }
-// }
-
 /**
  * @brief  return itself with every char(word) to lower
  */
@@ -172,6 +128,3 @@ int handle_input(int argc, char *argv[], char *out[], int *flags) {
   }
   return 0;
 }
-/*
-
-*/
