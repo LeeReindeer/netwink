@@ -358,8 +358,8 @@ error:
 
 int init_socket(int *sockfd) {
   char *protocal = arguments[PROTOCOL_NUM];
-  char *ip = arguments[IP_NUM];
-  char *port = arguments[PORT_NUM];
+  // char *ip = arguments[IP_NUM];
+  // char *port = arguments[PORT_NUM];
 
   *sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_IP)); /*raw sockfd init*/
 
@@ -372,26 +372,6 @@ int init_socket(int *sockfd) {
 
   // todo set ip / port in filter
   if (valid_argument(ip) || valid_argument(port) || valid_argument(protocal)) {
-    if (valid_argument(ip)) {
-      // filter = (struct sock_filter){0x15, 2, 0, 0x00001389};
-      uint32_t ip_n = ipton(ip);
-      if (ip_n == -1) {
-        printf("invalid IP: \"%s\".\n", ip);
-        goto error;
-      }
-      // filter_code[3] = (struct sock_filter){0x15, 2, 0, ip_n};
-      // filter_code[5] = (struct sock_filter){0x15, 0, 12, ip_n};
-    }
-    if (valid_argument(port)) {
-      uint32_t port_n = porton(port);
-      if (port_n == -1) {
-        printf("invalid port: %s\n", port);
-        goto error;
-      }
-      // filter_code[14] = (struct sock_filter){0x15, 2, 0, port_n};
-      // filter_code[16] = (struct sock_filter){0x15, 0, 1, port_n};
-    }
-
     struct sock_fprog bpf;
     // bpf.filter = filter_code;
     if (valid_argument(protocal)) {
