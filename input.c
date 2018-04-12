@@ -3,17 +3,22 @@
 #include <stdlib.h>
 #include <string.h>
 
-const char *short_opt = "f:p:i:t:s:nlvh";
+const char *short_opt = "f:p:i:t:s:vh";
 struct option long_opt[] = {{"interface", required_argument, NULL, 'f'},
                             {"port", required_argument, NULL, 'p'},
                             {"ip", required_argument, NULL, 'i'},
                             {"protocol", required_argument, NULL, 't'},
                             {"save", required_argument, NULL, 's'},
-                            {"name", no_argument, NULL, 'n'},
-                            {"local", no_argument, NULL, 'l'},
                             {"version", no_argument, NULL, 'v'},
                             {"help", no_argument, NULL, 'h'},
                             {NULL, 0, NULL, 0}};
+char *help = "netwink [-f] [interface name]\n"
+             "        [-p][port]\n"
+             "        [-i][IP address]\n"
+             "        [-t][protocol name]\n"
+             "        [-s][out.txt]\n"
+             "        [-v] #check version\n"
+             "        [-h] #help\n";
 
 /**
  * @brief  return itself with every char(word) to lower
@@ -78,6 +83,11 @@ uint32_t porton(char *port) {
   return p;
 }
 
+void print_help() {
+  printf("Usage:\n");
+  printf("%s\n", help);
+}
+
 /**
  * @brief handle user input
  * @param  argc:
@@ -107,20 +117,16 @@ int handle_input(int argc, char *argv[], char *out[], int *flags) {
       out[4] = strlwr(optarg);
       break;
     /*arg required end*/
-    case 'n': // show host name
-      flags[0] = 1;
-      break;
-    case 'l': // localhost
-      flags[1] = 1;
-      break;
     case 'v': // version
       flags[2] = 1;
-      break;
+      printf("netwink: %s\n", WINK_VERSION);
+      return 1;
     case 'h': // help
       flags[3] = 1;
-      break;
+      print_help();
+      return 1;
     case '?':
-      // TODO print hints
+      print_help();
       return -1;
     default:
       break;

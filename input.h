@@ -6,8 +6,11 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#define WINK_VERSION ("1.0-beta")
+
 #define MAX_STR_INPUT 20
-#define NO_ARG_OPS 4
+#define MAX_STR_OUTPUT (1024 * 2)
+#define NO_ARG_OPS 2
 #define ARG_OPS 5
 
 #define INTERFACE_NUM 0
@@ -18,6 +21,7 @@
 
 extern const char *short_opt;
 extern struct option long_opt[];
+extern char *help;
 
 int handle_input(int argc, char *argv[], char *out[], int *flags);
 
