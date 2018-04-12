@@ -25,29 +25,48 @@
 #include "input.h"
 #include "netwink.h"
 
-struct sock_filter filter_code[] = {
-    {0x28, 0, 0, 0x0000000c},  {0x15, 0, 16, 0x00000800},
-    {0x20, 0, 0, 0x0000001a},  // ip flag
-    {0x15, 2, 0, 0xc0a8090b},  // ip 1
-    {0x20, 0, 0, 0x0000001e},  // ip flag
-    {0x15, 0, 12, 0xc0a8090b}, // ip  3
-    {0x30, 0, 0, 0x00000017},  {0x15, 2, 0, 0x00000084},
-    {0x15, 1, 0, 0x00000006},  {0x15, 0, 8, 0x00000011},
-    {0x28, 0, 0, 0x00000014},  {0x45, 6, 0, 0x00001fff},
-    {0xb1, 0, 0, 0x0000000e}, //
-    {0x48, 0, 0, 0x0000000e}, // port flag1
-    {0x15, 2, 0, 0x00001389}, // port 12
-    {0x48, 0, 0, 0x00000010}, // port flag2
-    {0x15, 0, 1, 0x00001389}, // port 14
-    {0x6, 0, 0, 0x00040000},   {0x6, 0, 0, 0x00000000}};
+#define ARRAY_SIZE(A) (sizeof(A) / sizeof(A[0]))
+
+struct sock_filter filter_tcp_code[] = {
+    {0x28, 0, 0, 0x0000000c}, {0x15, 0, 5, 0x000086dd},
+    {0x30, 0, 0, 0x00000014}, {0x15, 6, 0, 0x00000006}, // select IP type tcp(6)
+    {0x15, 0, 6, 0x0000002c}, {0x30, 0, 0, 0x00000036},
+    {0x15, 3, 4, 0x00000006}, {0x15, 0, 3, 0x00000800},
+    {0x30, 0, 0, 0x00000017}, {0x15, 0, 1, 0x00000006},
+    {0x6, 0, 0, 0x00040000},  {0x6, 0, 0, 0x00000000}};
+
+struct sock_filter filter_udp_code[] = {
+    {0x28, 0, 0, 0x0000000c}, {0x15, 0, 5, 0x000086dd},
+    {0x30, 0, 0, 0x00000014}, {0x15, 6, 0, 0x00000011}, // select udp(17) hex 11
+    {0x15, 0, 6, 0x0000002c}, {0x30, 0, 0, 0x00000036},
+    {0x15, 3, 4, 0x00000011}, {0x15, 0, 3, 0x00000800},
+    {0x30, 0, 0, 0x00000017}, {0x15, 0, 1, 0x00000011},
+    {0x6, 0, 0, 0x00040000},  {0x6, 0, 0, 0x00000000}};
+
+struct sock_filter filter_icmp_code[] = {
+    {0x28, 0, 0, 0x0000000c},
+    {0x15, 0, 3, 0x00000800}, // select ethernet type 800(IP)
+    {0x30, 0, 0, 0x00000017},
+    {0x15, 0, 1, 0x00000001}, // select IP type, icmp(1)
+    {0x6, 0, 0, 0x00040000},
+    {0x6, 0, 0, 0x00000000}};
 
 /* input*/
 char *arguments[ARG_OPS];
 int flags[NO_ARG_OPS];
 
-static int pall_count = 0, pv_count = 0, piv_count = 0;
+/* output*/
+char out_buffer[MAX_STR_OUTPUT] = {0};
+int out_pipe[2];
+int saved_stdout;
+
+static volatile int pall_count = 0, pv_count = 0, piv_count = 0;
 /* handle ctrl c*/
 static volatile int keep = 1;
+
+int dup_stdout();
+void drop_buff();
+void print_buff();
 
 void handle_ethernet(const struct ether_header *ethernet_head) {
   printf("Destination Mac: %02x:%02x:%02x:%02x:%02x:%02x\n",
@@ -71,22 +90,46 @@ void handle_ethernet(const struct ether_header *ethernet_head) {
 }
 
 int handle_ip(const struct iphdr *ip_head) {
-  char ipstr[INET6_ADDRSTRLEN];
+  char ipstr_s[INET_ADDRSTRLEN];
+  char ipstr_d[INET_ADDRSTRLEN];
   if (ip_head->version != 4) {
-    return -1;
+    return ERROR_IPV6; // NOT SUPPORT IPv6
   }
-  printf("Source IP: %s\n",
-         inet_ntop(AF_INET, &(ip_head->saddr), ipstr, INET_ADDRSTRLEN));
-  printf("Dest IP: %s\n",
-         inet_ntop(AF_INET, &(ip_head->daddr), ipstr, INET_ADDRSTRLEN));
+  inet_ntop(AF_INET, &(ip_head->saddr), ipstr_s, INET_ADDRSTRLEN);
+  inet_ntop(AF_INET, &(ip_head->daddr), ipstr_d, INET_ADDRSTRLEN);
+  if (valid_argument(arguments[IP_NUM])) {
+    if (!strcmp(arguments[IP_NUM], ipstr_s) ||
+        !strcmp(arguments[IP_NUM], ipstr_d)) { /** filter match*/
+      printf("Source IP: %s\n", ipstr_s);
+      printf("Dest IP: %s\n", ipstr_d);
+    } else {
+      return ERROR_FILTER; /* filter not match*/
+    }
+  } else { /* no filter set*/
+    printf("Source IP: %s\n", ipstr_s);
+    printf("Dest IP: %s\n", ipstr_d);
+  }
+
   return (ip_head->protocol);
   /*ICMP(1), TCP(6), UDP(17), PPTP(47)*/
 }
 
-void handle_tcp(const struct tcphdr *tcp_head) {
-  printf("Src port: %d, ", ntohs(tcp_head->source));
-  printf("Dest port: %d\n", ntohs(tcp_head->dest));
+int handle_tcp(const struct tcphdr *tcp_head) {
+  uint16_t port_s = ntohs(tcp_head->source);
+  uint16_t port_d = ntohs(tcp_head->dest);
 
+  if (valid_argument(arguments[PORT_NUM])) {
+    if (atoi(arguments[PORT_NUM]) == port_s ||
+        atoi(arguments[PORT_NUM]) == port_d) {
+      printf("Src port: %d, ", port_s);
+      printf("Dest port: %d\n", port_d);
+    } else {
+      return ERROR_FILTER;
+    }
+  } else {
+    printf("Src port: %d, ", port_s);
+    printf("Dest port: %d\n", port_d);
+  }
   printf("Seq: %u\n", ntohl(tcp_head->seq));
   printf("Ack seq: %u\n", ntohl(tcp_head->ack_seq));
 
@@ -104,6 +147,38 @@ void handle_tcp(const struct tcphdr *tcp_head) {
     printf("[PSH]");
   }
   printf("\n");
+  return 0;
+}
+
+int dup_stdout() {
+  saved_stdout = dup(STDOUT_FILENO);
+
+  if (pipe(out_pipe) != 0) {
+    return ERROR_NORMAL;
+  }
+  dup2(out_pipe[1], STDOUT_FILENO);
+  return close(out_pipe[1]);
+}
+
+void drop_buff() {
+  // flush before opening stdout, so it actually cleared stdout???
+  fflush(stdout);
+}
+
+void print_buff() {
+  // dup2(saved_stdout, STDOUT_FILENO);
+  // fflush(stdout);
+  read(out_pipe[0], out_buffer,
+       MAX_STR_OUTPUT); /* read from pipe into buffer */
+
+  // todo save buffer in file..
+  if (valid_argument(arguments[SAVE_NUM])) {
+  }
+
+  dup2(saved_stdout, STDOUT_FILENO); /* reconnect stdout for testing */
+  printf("%s", out_buffer);
+  fflush(stdout);
+  memset(out_buffer, 0, sizeof(out_buffer));
 }
 
 char **get_all_interface(int *size) {
@@ -184,26 +259,23 @@ error:
 
 void intHandler(int dummy) {
   keep = 0;
+  dup2(saved_stdout, STDOUT_FILENO); // open stdout
   printf("\n%d packets captured\n%d packets received by filter\n%d packets "
-         "dropped\n",
+         "dropped by filter\n",
          pall_count, pv_count, piv_count);
   exit(1);
 }
 
-void sniffer(int listenfd, void *arg) {
+void sniffer(int listenfd, void **arg) {
   int n; /* number of Bytes received*/
+  int err = 0;
   char buf[2048];
   const struct ether_header *ethernet_head;
   const struct iphdr *ip_head;
   const struct tcphdr *tcp_head;
 
-  int rc = handle_promiscuos(listenfd);
-  if (rc == -1) {
-    printf("Can't make interface promiscuos\n");
-  }
-
   while (keep) {
-
+    close(STDOUT_FILENO); /* close stdout, store in pipe*/
     n = recvfrom(listenfd, buf, sizeof(buf), 0, NULL, NULL);
 
     if (errno == EAGAIN || n <= 0) {
@@ -216,9 +288,9 @@ void sniffer(int listenfd, void *arg) {
     if (n < 42) {
       printf("Incomplete packet\n");
       ++piv_count;
+      drop_buff();
       continue;
     }
-    ++pv_count;
 
     ethernet_head = (struct ether_header *)buf;
     handle_ethernet(ethernet_head);
@@ -226,6 +298,21 @@ void sniffer(int listenfd, void *arg) {
     ip_head = (struct iphdr *)(buf + ETHERNET_HEADSIZE);
     int protocol = handle_ip(ip_head);
     // printf("protocol %d\n", protocol);
+    if (protocol == ERROR_IPV6) {
+      ++piv_count;
+      printf("not support IPv6\n");
+      drop_buff();
+      continue;
+    }
+    if (protocol == ERROR_FILTER) {
+      ++piv_count;
+      printf("packet drroped by filter\n");
+      drop_buff();
+      continue; // drop
+    }
+
+    ++pv_count; // count as vaild packet
+
     switch (protocol) {
       {
       case TCP_P:
@@ -235,22 +322,35 @@ void sniffer(int listenfd, void *arg) {
         break;
       case UDP_P:
         printf("Layer-4 protocol %s\n", "UDP");
+        print_buff();
         continue;
       case ICMP_P:
         printf("Layer-4 protocol %s\n", "ICMP");
+        print_buff();
         continue;
       case PPTP_P:
         printf("Layer-4 protocol %s\n", "ICMP");
+        print_buff();
         continue;
       default:
         printf("Layer-4 protocol %s\n", " UNKNOWN PROTOCOL");
+        print_buff();
         continue;
       }
     }
 
-    check(tcp_head, "error"); // here tcpheader SHOULD not be NULL
-    handle_tcp(tcp_head);
-  }
+    check(tcp_head, "error"); // here, tcpheader SHOULD not be NULL
+    err = handle_tcp(tcp_head);
+    if (err == ERROR_FILTER) {
+      --pv_count;
+      ++piv_count;
+      printf("packet drroped by filter\n"); // this will never print to stdout
+      drop_buff();
+      continue;
+    }
+    // finally, print to stdout..
+    print_buff();
+  } // sniffer loop end
 error:
   close(listenfd);
   exit(1);
@@ -261,22 +361,17 @@ int init_socket(int *sockfd) {
   char *ip = arguments[IP_NUM];
   char *port = arguments[PORT_NUM];
 
-  if (valid_argument(protocal)) {
-    // if (!strcmp(protocal, "tcp")) {
-    //   printf("tcp only\n");
-    // todo use AF_INET is not ok...emmm, JUST USE BPF
-    //   *sockfd = socket(AF_PACKET, SOCK_RAW, IPPROTO_TCP);
-    // } else if (!strcmp(protocal, "udp")) {
-    //   *sockfd = socket(AF_PACKET, SOCK_RAW, IPPROTO_UDP);
-    // } else if (!strcmp(protocal, "icmp")) {
-    //   *sockfd = socket(AF_PACKET, SOCK_RAW, IPPROTO_ICMP);
-    // }
-  } else {
-    *sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_IP));
+  *sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_IP)); /*raw sockfd init*/
+
+  /*set interface to promiscuos*/
+  int rc = handle_promiscuos(*sockfd);
+  if (rc == -1) {
+    printf("can't make interface promiscuos\n");
+    rc = 0;
   }
 
   // todo set ip / port in filter
-  if (valid_argument(ip) || valid_argument(port)) {
+  if (valid_argument(ip) || valid_argument(port) || valid_argument(protocal)) {
     if (valid_argument(ip)) {
       // filter = (struct sock_filter){0x15, 2, 0, 0x00001389};
       uint32_t ip_n = ipton(ip);
@@ -284,8 +379,8 @@ int init_socket(int *sockfd) {
         printf("invalid IP: \"%s\".\n", ip);
         goto error;
       }
-      filter_code[1] = (struct sock_filter){0x15, 2, 0, ip_n};
-      filter_code[3] = (struct sock_filter){0x15, 0, 12, ip_n};
+      // filter_code[3] = (struct sock_filter){0x15, 2, 0, ip_n};
+      // filter_code[5] = (struct sock_filter){0x15, 0, 12, ip_n};
     }
     if (valid_argument(port)) {
       uint32_t port_n = porton(port);
@@ -293,17 +388,29 @@ int init_socket(int *sockfd) {
         printf("invalid port: %s\n", port);
         goto error;
       }
-      filter_code[12] = (struct sock_filter){0x15, 2, 0, port_n};
-      filter_code[14] = (struct sock_filter){0x15, 0, 1, port_n};
+      // filter_code[14] = (struct sock_filter){0x15, 2, 0, port_n};
+      // filter_code[16] = (struct sock_filter){0x15, 0, 1, port_n};
     }
 
     struct sock_fprog bpf;
-    bpf.len = 17;
-    bpf.filter = filter_code;
-    int rc =
-        setsockopt(*sockfd, SOL_SOCKET, SO_ATTACH_FILTER, &bpf, sizeof(bpf));
+    // bpf.filter = filter_code;
+    if (valid_argument(protocal)) {
+      if (!strcmp(protocal, "tcp")) {
+        printf("tcp only\n");
+        bpf.filter = filter_tcp_code;
+        bpf.len = ARRAY_SIZE(filter_tcp_code);
+      } else if (!strcmp(protocal, "udp")) {
+        bpf.filter = filter_udp_code;
+        bpf.len = ARRAY_SIZE(filter_udp_code);
+      } else if (!strcmp(protocal, "icmp")) {
+        bpf.filter = filter_icmp_code;
+        bpf.len = ARRAY_SIZE(filter_icmp_code);
+      }
+    }
+    /* set filter*/
+    rc = setsockopt(*sockfd, SOL_SOCKET, SO_ATTACH_FILTER, &bpf, sizeof(bpf));
     if (rc == -1) {
-      printf("can't set filter, start without filter.\n");
+      perror("can't set filter");
     }
   } else {
     log_d("no filter set");
@@ -320,15 +427,30 @@ error:
 /**
  * @brief netwink is a simple program like tcpdump(, but silly.
  * @author LeeReindeer
+ * @note
+ * netwink [-f] [interface name] //restrict interface
+        [-p] [port]//restrict port
+        [-i] [IP address]// restrict IP
+        [-t] [protocol name]//TCP/UDP/ICMP
+        [-s] [out.txt] //save to file
+        [-v] //check version
+        [-h] //help
 **/
 int main(int argc, char *argv[]) {
+  int rc = dup_stdout();
+  check(rc != -1, "dup error");
+
   /* handle input start*/
   memset(flags, 0, sizeof(flags));
   for (int i = 0; i < 5; i++) {
     arguments[i] = malloc(sizeof(char) * MAX_STR_INPUT);
   }
-  // check(arguments, "mem error");
-  int rc = handle_input(argc, argv, arguments, flags);
+  rc = handle_input(argc, argv, arguments, flags);
+  if (rc == 1) {
+    dup2(saved_stdout, STDOUT_FILENO);
+    fflush(stdout);
+    return 0;
+  }
   check(rc != -1, "input error");
   /* handle input end*/
 
@@ -342,5 +464,6 @@ int main(int argc, char *argv[]) {
   return 0;
 
 error:
+  dup2(saved_stdout, STDOUT_FILENO);
   exit(1);
 }

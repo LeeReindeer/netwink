@@ -17,9 +17,13 @@
 #define UDP_P 17
 #define PPTP_P 47
 
-#define WINK_VERSION ("1.0-beta")
+/* error code start*/
+#define ERROR_NORMAL -1
+#define ERROR_FILTER -2
+#define ERROR_IPV6 -6
+/* error code end*/
 
-struct sock_filter filter_code[];
+// struct sock_filter filter_code[];
 
 char **get_all_interface(int *size);
 
@@ -35,7 +39,7 @@ int handle_promiscuos(int sockfd);
 
 void handle_ethernet(const struct ether_header *ethernet_head);
 int handle_ip(const struct iphdr *ip_head);
-void handle_tcp(const struct tcphdr *tcp_head);
+int handle_tcp(const struct tcphdr *tcp_head);
 
 int init_socket(int *sockfd);
 
