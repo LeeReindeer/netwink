@@ -427,7 +427,7 @@ error:
 /**
  * @brief netwink is a simple program like tcpdump(, but silly.
  * @author LeeReindeer
- * @note
+ * @usage
  * netwink [-f] [interface name] //restrict interface
         [-p] [port]//restrict port
         [-i] [IP address]// restrict IP

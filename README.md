@@ -1,7 +1,5 @@
 # Netwink
 
-![netwink](./art/netwink-lo.png)
-
 ## Usage
 
 ```shell
