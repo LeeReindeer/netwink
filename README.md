@@ -2,17 +2,14 @@
 
 ![netwink](./art/netwink-lo.png)
 
-## 使用
+## Usage
 
 ```shell
-netwink [-f] [interface name] //指定网卡名
-        [-p] [port]//指定端口
-        [-i] [IP]//指定 IP
-        [-t] [protocol]//指定协议 TCP/UDP/ICMP
-
-        [-n] ////以主机名方式输出主机 IP
-        [-l] //显示 localhost 的包
-        [-s] [out.txt] //保存到文件
-        [-v] //查看版本
-        [-?] //help
+netwink [-f] [interface name] //restrict interface
+        [-p] [port]//restrict port
+        [-i] [IP address]// restrict IP
+        [-t] [protocol name]//TCP/UDP/ICMP
+        [-s] [out.txt] //save to file
+        [-v] //check version
+        [-h] //help
 ```
