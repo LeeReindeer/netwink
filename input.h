@@ -28,7 +28,7 @@ int handle_input(int argc, char *argv[], char *out[], int *flags);
 int valid_argument(char *arg);
 
 uint32_t ipton(char *ip4);
-uint32_t porton(char *port);
+uint16_t porton(char *port);
 
 char *strlwr(char *in);
 

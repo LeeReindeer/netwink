@@ -75,8 +75,8 @@ uint32_t ipton(char *ip4) {
  * @param  *port:
  * @retval on error: -1, else int of port
  */
-uint32_t porton(char *port) {
-  uint32_t p = atoi(port);
+uint16_t porton(char *port) {
+  uint16_t p = atoi(port);
   if (p > (1 << 16)) { // 2^16
     return -1;
   }
