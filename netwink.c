@@ -147,7 +147,7 @@ int handle_tcp(const struct tcphdr *tcp_head) {
     printf("[PSH]");
   }
   printf("\n");
-  return 0;
+  return ERROR_NONE;
 }
 
 /**
@@ -197,12 +197,12 @@ char **get_all_interface(int *size) {
   char buf[2048];
   int count = 0, i = 0;
   int sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
-  check(sockfd != -1, "socket error");
+  check(sockfd != ERROR_NORMAL, "socket error");
 
   ifc.ifc_len = sizeof(buf);
   ifc.ifc_buf = buf;
   int rc = ioctl(sockfd, SIOCGIFCONF, &ifc);
-  check(rc != -1, "ioctl error");
+  check(rc != ERROR_NORMAL, "ioctl error");
 
   struct ifreq *it = ifc.ifc_req;
   count = ifc.ifc_len / sizeof(struct ifreq);
@@ -241,15 +241,15 @@ int make_promiscuos(int sockfd, char *ethname) {
   struct ifreq ethreq;
   strncpy(ethreq.ifr_name, ethname, IFNAMSIZ);
   int rc = ioctl(sockfd, SIOCGIFFLAGS, &ethreq);
-  check(rc != -1, "ioctl error");
+  check(rc != ERROR_NORMAL, "ioctl error");
 
   ethreq.ifr_flags |= IFF_PROMISC;
   rc = ioctl(sockfd, SIOCSIFFLAGS, &ethreq);
-  check(rc != -1, "ioctl2 error");
+  check(rc != ERROR_NORMAL, "ioctl2 error");
   return 0;
 
 error:
-  return -1;
+  return ERROR_NORMAL;
 }
 
 /**
@@ -258,19 +258,19 @@ error:
  */
 int handle_promiscuos(int sockfd) {
   char **interfaces;
-  int in_size = 0, rc = 0;
+  int in_size = 0, rc = ERROR_NONE;
   /*获取所有在使用的网卡名称*/
   interfaces = get_all_interface(&in_size);
   check(interfaces != NULL, "interface error");
   for (int i = 0; i < in_size; ++i) {
     /* 设置网卡为兼容模式*/
     rc = make_promiscuos(sockfd, interfaces[i]);
-    check(rc != -1, "promiscuos error");
+    check(rc != ERROR_NORMAL, "promiscuos error");
   }
   free(interfaces);
-  return 0;
+  return ERROR_NONE;
 error:
-  return -1;
+  return ERROR_NORMAL;
 }
 
 /**
@@ -293,7 +293,7 @@ void intHandler(int dummy) {
  */
 int sniffer(int listenfd, void **arg) {
   int n; /* number of Bytes received*/
-  int err = 0;
+  int err = ERROR_NONE;
   char buf[2048];
   const struct ether_header *ethernet_head;
   const struct iphdr *ip_head;
@@ -376,9 +376,9 @@ int sniffer(int listenfd, void **arg) {
     // finally, print to stdout..
     print_buff();
   } // sniffer loop end
-  return 0;
+  return ERROR_NONE;
 error:
-  return -1;
+  return ERROR_NORMAL;
 }
 
 /**
@@ -388,7 +388,7 @@ int init_socket(int *sockfd) {
   char *protocol = arguments[PROTOCOL_NUM];
   char *ip = arguments[IP_NUM];
   char *port = arguments[PORT_NUM];
-  int rc = 0;
+  int rc = ERROR_NONE;
 
   *sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_IP)); /*raw sockfd init*/
 
@@ -410,7 +410,7 @@ int init_socket(int *sockfd) {
       }
       /* set filter*/
       rc = setsockopt(*sockfd, SOL_SOCKET, SO_ATTACH_FILTER, &bpf, sizeof(bpf));
-      if (rc == -1) {
+      if (rc == ERROR_NORMAL) {
         perror("can't set filter");
       }
     }
@@ -432,15 +432,15 @@ int init_socket(int *sockfd) {
   }
   /*set interface to promiscuos*/
   rc = handle_promiscuos(*sockfd);
-  if (rc == -1) {
+  if (rc == ERROR_NORMAL) {
     printf("can't make interface promiscuos\n");
   }
   if (*sockfd <= 0) {
     goto error; // don't use check() in inner func
   }
-  return 0;
+  return ERROR_NONE;
 error:
-  return -1;
+  return ERROR_NORMAL;
 }
 
 /**
@@ -457,7 +457,7 @@ error:
 **/
 int main(int argc, char *argv[]) {
   int rc = dup_stdout();
-  check(rc != -1, "dup error");
+  check(rc != ERROR_NORMAL, "dup error");
 
   /* handle input start*/
   memset(flags, 0, sizeof(flags));
@@ -468,25 +468,25 @@ int main(int argc, char *argv[]) {
   if (rc == 1) {
     dup2(saved_stdout, STDOUT_FILENO);
     fflush(stdout);
-    return 0;
+    return ERROR_NONE;
   }
-  check(rc != -1, "input error");
+  check(rc != ERROR_NORMAL, "input error");
   /* handle input end*/
 
   int sockfd;
 
   rc = init_socket(&sockfd);
-  check(rc != -1, "socket error");
-  check(rc != -5, "argument error");
+  check(rc != ERROR_NORMAL, "socket error");
+  check(rc != ERROR_ARG, "argument error");
   check(rc != ERROR_ARG_IP, "IP error");
   check(rc != ERROR_ARG_PORT, "port error");
 
   signal(SIGINT, intHandler);
   rc = sniffer(sockfd, NULL);
-  return 0;
+  return ERROR_NONE;
 
 error:
-  if (sockfd != -1) {
+  if (sockfd != ERROR_NORMAL) {
     close(sockfd);
   }
   dup2(saved_stdout, STDOUT_FILENO);
