@@ -18,10 +18,13 @@
 #define PPTP_P 47
 
 /* error code start*/
+#define ERROR_NONE 0 // NO ERROR
 #define ERROR_NORMAL -1
 #define ERROR_FILTER -2
 #define ERROR_ARG -5
 #define ERROR_IPV6 -6
+#define ERROR_ARG_IP -7
+#define ERROR_ARG_PORT -8
 /* error code end*/
 
 char **get_all_interface(int *size);

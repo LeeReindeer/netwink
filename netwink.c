@@ -98,10 +98,6 @@ int handle_ip(const struct iphdr *ip_head) {
   inet_ntop(AF_INET, &(ip_head->saddr), ipstr_s, INET_ADDRSTRLEN);
   inet_ntop(AF_INET, &(ip_head->daddr), ipstr_d, INET_ADDRSTRLEN);
   if (valid_argument(arguments[IP_NUM])) {
-    uint32_t ip_num = ipton(arguments[IP_NUM]);
-    if (ip_num == ERROR_NORMAL) {
-      return ERROR_ARG;
-    }
     if (!strcmp(arguments[IP_NUM], ipstr_s) ||
         !strcmp(arguments[IP_NUM], ipstr_d)) { /** filter match*/
       printf("Source IP: %s\n", ipstr_s);
@@ -124,9 +120,6 @@ int handle_tcp(const struct tcphdr *tcp_head) {
 
   if (valid_argument(arguments[PORT_NUM])) {
     uint16_t port_arg = porton(arguments[PORT_NUM]);
-    if (port_arg == ERROR_NORMAL) {
-      return ERROR_ARG;
-    }
     if (port_arg == port_s || port_arg == port_d) {
       printf("Src port: %d, ", port_s);
       printf("Dest port: %d\n", port_d);
@@ -298,7 +291,7 @@ void intHandler(int dummy) {
  * @param  listenfd: fd to recv packet
  * @param  **arg: this param is reserved.
  */
-void sniffer(int listenfd, void **arg) {
+int sniffer(int listenfd, void **arg) {
   int n; /* number of Bytes received*/
   int err = 0;
   char buf[2048];
@@ -342,10 +335,6 @@ void sniffer(int listenfd, void **arg) {
       drop_buff();
       continue; // drop
     }
-    if (protocol == ERROR_ARG) {
-      printf("argument error\n");
-      goto error;
-    }
 
     ++pv_count; // count as vaild packet
 
@@ -375,7 +364,7 @@ void sniffer(int listenfd, void **arg) {
       }
     }
 
-    check(tcp_head, "error"); // here, tcpheader SHOULD not be NULL
+    check(tcp_head, "TCP error"); // here, tcpheader SHOULD not be NULL
     err = handle_tcp(tcp_head);
     if (err == ERROR_FILTER) {
       --pv_count;
@@ -387,10 +376,9 @@ void sniffer(int listenfd, void **arg) {
     // finally, print to stdout..
     print_buff();
   } // sniffer loop end
+  return 0;
 error:
-  close(listenfd);
-  dup2(saved_stdout, STDOUT_FILENO);
-  exit(1);
+  return -1;
 }
 
 /**
@@ -400,15 +388,9 @@ int init_socket(int *sockfd) {
   char *protocol = arguments[PROTOCOL_NUM];
   char *ip = arguments[IP_NUM];
   char *port = arguments[PORT_NUM];
+  int rc = 0;
 
   *sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_IP)); /*raw sockfd init*/
-
-  /*set interface to promiscuos*/
-  int rc = handle_promiscuos(*sockfd);
-  if (rc == -1) {
-    printf("can't make interface promiscuos\n");
-    rc = 0;
-  }
 
   if (valid_argument(ip) || valid_argument(port) || valid_argument(protocol)) {
     struct sock_fprog bpf;
@@ -426,16 +408,33 @@ int init_socket(int *sockfd) {
       } else {
         return ERROR_ARG;
       }
+      /* set filter*/
+      rc = setsockopt(*sockfd, SOL_SOCKET, SO_ATTACH_FILTER, &bpf, sizeof(bpf));
+      if (rc == -1) {
+        perror("can't set filter");
+      }
     }
-    /* set filter*/
-    rc = setsockopt(*sockfd, SOL_SOCKET, SO_ATTACH_FILTER, &bpf, sizeof(bpf));
-    if (rc == -1) {
-      perror("can't set filter");
+    if (valid_argument(ip)) {
+      uint32_t ip_n = ipton(ip);
+      if (ip_n == 1) {
+        return ERROR_ARG_IP;
+      }
+    }
+    if (valid_argument(port)) {
+
+      uint16_t port_n = porton(port);
+      if (port_n == 1) {
+        return ERROR_ARG_PORT;
+      }
     }
   } else {
     log_d("no filter set");
   }
-
+  /*set interface to promiscuos*/
+  rc = handle_promiscuos(*sockfd);
+  if (rc == -1) {
+    printf("can't make interface promiscuos\n");
+  }
   if (*sockfd <= 0) {
     goto error; // don't use check() in inner func
   }
@@ -479,12 +478,17 @@ int main(int argc, char *argv[]) {
   rc = init_socket(&sockfd);
   check(rc != -1, "socket error");
   check(rc != -5, "argument error");
+  check(rc != ERROR_ARG_IP, "IP error");
+  check(rc != ERROR_ARG_PORT, "port error");
 
   signal(SIGINT, intHandler);
-  sniffer(sockfd, NULL);
+  rc = sniffer(sockfd, NULL);
   return 0;
 
 error:
+  if (sockfd != -1) {
+    close(sockfd);
+  }
   dup2(saved_stdout, STDOUT_FILENO);
   exit(1);
 }
