@@ -382,10 +382,10 @@ error:
 }
 
 /**
- * @brief  init sockfd with filter(use BPF pseudo machine code, protocal only)
+ * @brief  init sockfd with filter(use BPF pseudo machine code, protocol only)
  */
 int init_socket(int *sockfd) {
-  char *protocal = arguments[PROTOCOL_NUM];
+  char *protocol = arguments[PROTOCOL_NUM];
   char *ip = arguments[IP_NUM];
   char *port = arguments[PORT_NUM];
 
@@ -398,17 +398,17 @@ int init_socket(int *sockfd) {
     rc = 0;
   }
 
-  if (valid_argument(ip) || valid_argument(port) || valid_argument(protocal)) {
+  if (valid_argument(ip) || valid_argument(port) || valid_argument(protocol)) {
     struct sock_fprog bpf;
-    if (valid_argument(protocal)) {
-      if (!strcmp(protocal, "tcp")) {
+    if (valid_argument(protocol)) {
+      if (!strcmp(protocol, "tcp")) {
         printf("tcp only\n");
         bpf.filter = filter_tcp_code;
         bpf.len = ARRAY_SIZE(filter_tcp_code);
-      } else if (!strcmp(protocal, "udp")) {
+      } else if (!strcmp(protocol, "udp")) {
         bpf.filter = filter_udp_code;
         bpf.len = ARRAY_SIZE(filter_udp_code);
-      } else if (!strcmp(protocal, "icmp")) {
+      } else if (!strcmp(protocol, "icmp")) {
         bpf.filter = filter_icmp_code;
         bpf.len = ARRAY_SIZE(filter_icmp_code);
       }
