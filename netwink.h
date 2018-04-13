@@ -23,8 +23,6 @@
 #define ERROR_IPV6 -6
 /* error code end*/
 
-// struct sock_filter filter_code[];
-
 char **get_all_interface(int *size);
 
 int make_promiscuos(int sockfd, char *ethname);

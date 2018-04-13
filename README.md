@@ -1,5 +1,14 @@
 # Netwink
 
+> I wrote this for computer network course.
+
+## Build
+
+```shell
+make
+sudo make install
+```
+
 ## Usage
 
 ```shell

@@ -150,6 +150,9 @@ int handle_tcp(const struct tcphdr *tcp_head) {
   return 0;
 }
 
+/**
+ * @brief  redirect stdout to pipe
+ */
 int dup_stdout() {
   saved_stdout = dup(STDOUT_FILENO);
 
@@ -165,9 +168,10 @@ void drop_buff() {
   fflush(stdout);
 }
 
+/**
+ * @brief  read from pipe, and open stdout
+ */
 void print_buff() {
-  // dup2(saved_stdout, STDOUT_FILENO);
-  // fflush(stdout);
   read(out_pipe[0], out_buffer,
        MAX_STR_OUTPUT); /* read from pipe into buffer */
 
@@ -175,12 +179,17 @@ void print_buff() {
   if (valid_argument(arguments[SAVE_NUM])) {
   }
 
-  dup2(saved_stdout, STDOUT_FILENO); /* reconnect stdout for testing */
+  dup2(saved_stdout, STDOUT_FILENO); /* reconnect stdout */
   printf("%s", out_buffer);
   fflush(stdout);
   memset(out_buffer, 0, sizeof(out_buffer));
 }
 
+/**
+ * @brief  get all "up" interfaces
+ * @param  *size: receiver to get the num of interfaces
+ * @retval array of interfaces
+ */
 char **get_all_interface(int *size) {
 
   char **interfaces;
@@ -224,6 +233,9 @@ error:
   return NULL;
 }
 
+/**
+ * @brief  make interface named as ethname promiscuos
+ */
 int make_promiscuos(int sockfd, char *ethname) {
   // l2 set network card in promiscuos mode
   struct ifreq ethreq;
@@ -240,6 +252,10 @@ error:
   return -1;
 }
 
+/**
+ * @brief  call <code>get_all_interface()</code> and
+ * <code>make_promiscuos</code> to make all interfaces promiscuos.
+ */
 int handle_promiscuos(int sockfd) {
   char **interfaces;
   int in_size = 0, rc = 0;
@@ -257,6 +273,9 @@ error:
   return -1;
 }
 
+/**
+ * @brief  handle SIGINT(CTRL + C), it print packets' statustucs then exit(1).
+ */
 void intHandler(int dummy) {
   keep = 0;
   dup2(saved_stdout, STDOUT_FILENO); // open stdout
@@ -266,6 +285,12 @@ void intHandler(int dummy) {
   exit(1);
 }
 
+/**
+ * @brief  main loop,
+ * call handle_ethernet, handle_ip and handle_tcp in sequence.
+ * @param  listenfd: fd to recv packet
+ * @param  **arg: this param is reserved.
+ */
 void sniffer(int listenfd, void **arg) {
   int n; /* number of Bytes received*/
   int err = 0;
@@ -356,6 +381,9 @@ error:
   exit(1);
 }
 
+/**
+ * @brief  init sockfd with filter(use BPF pseudo machine code, protocal only)
+ */
 int init_socket(int *sockfd) {
   char *protocal = arguments[PROTOCOL_NUM];
   char *ip = arguments[IP_NUM];
@@ -370,10 +398,8 @@ int init_socket(int *sockfd) {
     rc = 0;
   }
 
-  // todo set ip / port in filter
   if (valid_argument(ip) || valid_argument(port) || valid_argument(protocal)) {
     struct sock_fprog bpf;
-    // bpf.filter = filter_code;
     if (valid_argument(protocal)) {
       if (!strcmp(protocal, "tcp")) {
         printf("tcp only\n");
