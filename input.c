@@ -54,17 +54,17 @@ uint32_t ipton(char *ip4) {
   }
   // printf("count: %d\n", count);
   if (count < 7 || count > 12 + 3) { // 0.0.0.0
-    return -1;
+    return 1;
   }
   unsigned int ipbytes[4];
   int rc = sscanf(ip4, "%u.%u.%u.%u", &ipbytes[0], &ipbytes[1], &ipbytes[2],
                   &ipbytes[3]);
   if (rc == -1) {
-    return -1;
+    return 1;
   }
   for (int i = 0; i < 4; i++) {
     if (ipbytes[i] >= (1 << 8)) {
-      return -1;
+      return 1;
     }
   }
   return ipbytes[0] << 24 | ipbytes[1] << 16 | ipbytes[2] << 8 | ipbytes[3];
@@ -76,11 +76,11 @@ uint32_t ipton(char *ip4) {
  * @retval on error: -1, else int of port
  */
 uint16_t porton(char *port) {
-  uint16_t p = atoi(port);
-  if (p > (1 << 16)) { // 2^16
-    return -1;
+  int p = atoi(port);
+  if (p >= (1 << 16) || p < 0) { // 2^16
+    return 1;
   }
-  return p;
+  return (uint16_t)p;
 }
 
 void print_help() {
