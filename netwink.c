@@ -391,6 +391,9 @@ int init_socket(int *sockfd) {
   int rc = ERROR_NONE;
 
   *sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_IP)); /*raw sockfd init*/
+  if (*sockfd <= 0) {
+    goto error; // don't use check() in inner func
+  }
 
   if (valid_argument(ip) || valid_argument(port) || valid_argument(protocol)) {
     struct sock_fprog bpf;
@@ -434,9 +437,6 @@ int init_socket(int *sockfd) {
   rc = handle_promiscuos(*sockfd);
   if (rc == ERROR_NORMAL) {
     printf("can't make interface promiscuos\n");
-  }
-  if (*sockfd <= 0) {
-    goto error; // don't use check() in inner func
   }
   return ERROR_NONE;
 error:
