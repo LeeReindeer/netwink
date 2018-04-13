@@ -358,8 +358,8 @@ error:
 
 int init_socket(int *sockfd) {
   char *protocal = arguments[PROTOCOL_NUM];
-  // char *ip = arguments[IP_NUM];
-  // char *port = arguments[PORT_NUM];
+  char *ip = arguments[IP_NUM];
+  char *port = arguments[PORT_NUM];
 
   *sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_IP)); /*raw sockfd init*/
 
