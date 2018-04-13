@@ -98,6 +98,10 @@ int handle_ip(const struct iphdr *ip_head) {
   inet_ntop(AF_INET, &(ip_head->saddr), ipstr_s, INET_ADDRSTRLEN);
   inet_ntop(AF_INET, &(ip_head->daddr), ipstr_d, INET_ADDRSTRLEN);
   if (valid_argument(arguments[IP_NUM])) {
+    uint32_t ip_num = ipton(arguments[IP_NUM]);
+    if (ip_num == ERROR_NORMAL) {
+      return ERROR_ARG;
+    }
     if (!strcmp(arguments[IP_NUM], ipstr_s) ||
         !strcmp(arguments[IP_NUM], ipstr_d)) { /** filter match*/
       printf("Source IP: %s\n", ipstr_s);
@@ -119,8 +123,11 @@ int handle_tcp(const struct tcphdr *tcp_head) {
   uint16_t port_d = ntohs(tcp_head->dest);
 
   if (valid_argument(arguments[PORT_NUM])) {
-    if (atoi(arguments[PORT_NUM]) == port_s ||
-        atoi(arguments[PORT_NUM]) == port_d) {
+    uint16_t port_arg = porton(arguments[PORT_NUM]);
+    if (port_arg == ERROR_NORMAL) {
+      return ERROR_ARG;
+    }
+    if (port_arg == port_s || port_arg == port_d) {
       printf("Src port: %d, ", port_s);
       printf("Dest port: %d\n", port_d);
     } else {
@@ -335,6 +342,10 @@ void sniffer(int listenfd, void **arg) {
       drop_buff();
       continue; // drop
     }
+    if (protocol == ERROR_ARG) {
+      printf("argument error\n");
+      goto error;
+    }
 
     ++pv_count; // count as vaild packet
 
@@ -378,6 +389,7 @@ void sniffer(int listenfd, void **arg) {
   } // sniffer loop end
 error:
   close(listenfd);
+  dup2(saved_stdout, STDOUT_FILENO);
   exit(1);
 }
 
@@ -411,6 +423,8 @@ int init_socket(int *sockfd) {
       } else if (!strcmp(protocol, "icmp")) {
         bpf.filter = filter_icmp_code;
         bpf.len = ARRAY_SIZE(filter_icmp_code);
+      } else {
+        return ERROR_ARG;
       }
     }
     /* set filter*/
@@ -464,6 +478,7 @@ int main(int argc, char *argv[]) {
 
   rc = init_socket(&sockfd);
   check(rc != -1, "socket error");
+  check(rc != -5, "argument error");
 
   signal(SIGINT, intHandler);
   sniffer(sockfd, NULL);

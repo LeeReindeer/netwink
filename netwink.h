@@ -20,6 +20,7 @@
 /* error code start*/
 #define ERROR_NORMAL -1
 #define ERROR_FILTER -2
+#define ERROR_ARG -5
 #define ERROR_IPV6 -6
 /* error code end*/
 
@@ -31,6 +32,9 @@ int make_promiscuos(int sockfd, char *ethname);
 int make_unpromiscuos(int sockfd, char *ethname);
 
 int handle_promiscuos(int sockfd);
+
+// todo save buffer to file
+int save_file(char *buf);
 
 // void ctrlc_cb(evutil_socket_t sig, short events, void *arg);
 // void read_cb(evutil_socket_t sockfd, short events, void *arg);
