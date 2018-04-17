@@ -37,10 +37,11 @@ int make_unpromiscuos(int sockfd, char *ethname);
 int handle_promiscuos(int sockfd);
 
 // todo save buffer to file
-int save_file(char *buf);
+void save_file(char *buf);
 
 // void ctrlc_cb(evutil_socket_t sig, short events, void *arg);
 // void read_cb(evutil_socket_t sockfd, short events, void *arg);
+int handle_main_input(int argc, char **argv);
 
 void handle_ethernet(const struct ether_header *ethernet_head);
 int handle_ip(const struct iphdr *ip_head);

@@ -57,8 +57,10 @@ int flags[NO_ARG_OPS];
 
 /* output*/
 char out_buffer[MAX_STR_OUTPUT] = {0};
+char drop_buffer[MAX_STR_OUTPUT] = {0};
 int out_pipe[2];
 int saved_stdout;
+FILE *fp = NULL;
 
 static volatile int pall_count = 0, pv_count = 0, piv_count = 0;
 /* handle ctrl c*/
@@ -69,23 +71,23 @@ void drop_buff();
 void print_buff();
 
 void handle_ethernet(const struct ether_header *ethernet_head) {
-  printf("Destination Mac: %02x:%02x:%02x:%02x:%02x:%02x\n",
-         ethernet_head->ether_dhost[0], ethernet_head->ether_dhost[1],
-         ethernet_head->ether_dhost[2], ethernet_head->ether_dhost[3],
-         ethernet_head->ether_dhost[4], ethernet_head->ether_dhost[5]);
+  printff("Destination Mac: %02x:%02x:%02x:%02x:%02x:%02x\n",
+          ethernet_head->ether_dhost[0], ethernet_head->ether_dhost[1],
+          ethernet_head->ether_dhost[2], ethernet_head->ether_dhost[3],
+          ethernet_head->ether_dhost[4], ethernet_head->ether_dhost[5]);
 
-  printf("Source Mac: %02x:%02x:%02x:%02x:%02x:%02x\n",
-         ethernet_head->ether_shost[0], ethernet_head->ether_shost[1],
-         ethernet_head->ether_shost[2], ethernet_head->ether_shost[3],
-         ethernet_head->ether_shost[4], ethernet_head->ether_shost[5]);
+  printff("Source Mac: %02x:%02x:%02x:%02x:%02x:%02x\n",
+          ethernet_head->ether_shost[0], ethernet_head->ether_shost[1],
+          ethernet_head->ether_shost[2], ethernet_head->ether_shost[3],
+          ethernet_head->ether_shost[4], ethernet_head->ether_shost[5]);
 
-  printf("Ethernet type: ");
+  printff("Ethernet type: ");
   if (ntohs(ethernet_head->ether_type) == ETHERTYPE_IP) {
-    printf("IP\n");
+    printff("IP\n");
   } else if (ntohs(ethernet_head->ether_type) == ETHERTYPE_ARP) {
-    printf("ARP\n");
+    printff("ARP\n");
   } else if (ntohs(ethernet_head->ether_type) == ETHERTYPE_REVARP) {
-    printf("Reverse ARP\n");
+    printff("Reverse ARP\n");
   }
 }
 
@@ -100,14 +102,14 @@ int handle_ip(const struct iphdr *ip_head) {
   if (valid_argument(arguments[IP_NUM])) {
     if (!strcmp(arguments[IP_NUM], ipstr_s) ||
         !strcmp(arguments[IP_NUM], ipstr_d)) { /** filter match*/
-      printf("Source IP: %s\n", ipstr_s);
-      printf("Dest IP: %s\n", ipstr_d);
+      printff("Source IP: %s\n", ipstr_s);
+      printff("Dest IP: %s\n", ipstr_d);
     } else {
       return ERROR_FILTER; /* filter not match*/
     }
   } else { /* no filter set*/
-    printf("Source IP: %s\n", ipstr_s);
-    printf("Dest IP: %s\n", ipstr_d);
+    printff("Source IP: %s\n", ipstr_s);
+    printff("Dest IP: %s\n", ipstr_d);
   }
 
   return (ip_head->protocol);
@@ -121,68 +123,33 @@ int handle_tcp(const struct tcphdr *tcp_head) {
   if (valid_argument(arguments[PORT_NUM])) {
     uint16_t port_arg = porton(arguments[PORT_NUM]);
     if (port_arg == port_s || port_arg == port_d) {
-      printf("Src port: %d, ", port_s);
-      printf("Dest port: %d\n", port_d);
+      printff("Src port: %d, ", port_s);
+      printff("Dest port: %d\n", port_d);
     } else {
       return ERROR_FILTER;
     }
   } else {
-    printf("Src port: %d, ", port_s);
-    printf("Dest port: %d\n", port_d);
+    printff("Src port: %d, ", port_s);
+    printff("Dest port: %d\n", port_d);
   }
-  printf("Seq: %u\n", ntohl(tcp_head->seq));
-  printf("Ack seq: %u\n", ntohl(tcp_head->ack_seq));
+  printff("Seq: %u\n", ntohl(tcp_head->seq));
+  printff("Ack seq: %u\n", ntohl(tcp_head->ack_seq));
 
-  printf("Flag:");
+  printff("Flag:");
   if (tcp_head->ack) {
-    printf("[ACK]");
+    printff("[ACK]");
   }
   if (tcp_head->fin) {
-    printf("[FIN]");
+    printff("[FIN]");
   }
   if (tcp_head->syn) {
-    printf("[SYN]");
+    printff("[SYN]");
   }
   if (tcp_head->psh) {
-    printf("[PSH]");
+    printff("[PSH]");
   }
-  printf("\n");
+  printff("\n");
   return ERROR_NONE;
-}
-
-/**
- * @brief  redirect stdout to pipe
- */
-int dup_stdout() {
-  saved_stdout = dup(STDOUT_FILENO);
-
-  if (pipe(out_pipe) != 0) {
-    return ERROR_NORMAL;
-  }
-  dup2(out_pipe[1], STDOUT_FILENO);
-  return close(out_pipe[1]);
-}
-
-void drop_buff() {
-  // flush before opening stdout, so it actually cleared stdout???
-  fflush(stdout);
-}
-
-/**
- * @brief  read from pipe, and open stdout
- */
-void print_buff() {
-  read(out_pipe[0], out_buffer,
-       MAX_STR_OUTPUT); /* read from pipe into buffer */
-
-  // todo save buffer in file..
-  if (valid_argument(arguments[SAVE_NUM])) {
-  }
-
-  dup2(saved_stdout, STDOUT_FILENO); /* reconnect stdout */
-  printf("%s", out_buffer);
-  fflush(stdout);
-  memset(out_buffer, 0, sizeof(out_buffer));
 }
 
 /**
@@ -279,10 +246,62 @@ error:
 void intHandler(int dummy) {
   keep = 0;
   dup2(saved_stdout, STDOUT_FILENO); // open stdout
-  printf("\n%d packets captured\n%d packets received by filter\n%d packets "
-         "dropped by filter\n",
-         pall_count, pv_count, piv_count);
+  printff("\n%d packets captured\n%d packets received by filter\n%d packets "
+          "dropped by filter\n",
+          pall_count, pv_count, piv_count);
+  if (fp) {
+    fclose(fp);
+  }
   exit(1);
+}
+
+/**
+ * @brief  redirect stdout to pipe
+ */
+int dup_stdout() {
+  if (pipe(out_pipe) != 0) {
+    exit(1);
+  }
+  return dup2(out_pipe[1], STDOUT_FILENO);
+}
+
+void drop_buff() {
+  close(out_pipe[1]);
+  // flush before opening stdout, so it actually cleared stdout???
+  fflush(stdout);
+  read(out_pipe[0], out_buffer,
+       MAX_STR_OUTPUT); /* read from pipe into buffer */
+  if (strlen(drop_buffer) >= 1024) {
+    memset(drop_buffer, 0, sizeof(drop_buffer));
+  }
+}
+
+void save_file(char *buf) {
+  int rc = 0;
+  if (fp != NULL) {
+    rc = fprintf(fp, "%s", buf);
+    if (rc == -1) {
+      log_e("cant't save to file.");
+      fflush(stdout);
+      exit(1);
+    }
+    fflush(fp);
+  }
+}
+
+/**
+ * @brief  read from pipe, and open stdout
+ */
+void print_buff() {
+  close(out_pipe[1]);
+  read(out_pipe[0], out_buffer,
+       MAX_STR_OUTPUT); /* read from pipe into buffer */
+
+  dup2(saved_stdout, STDOUT_FILENO); /* reconnect stdout */
+  printff("%s", out_buffer);
+  save_file(out_buffer);
+
+  memset(out_buffer, 0, sizeof(out_buffer));
 }
 
 /**
@@ -300,18 +319,18 @@ int sniffer(int listenfd, void **arg) {
   const struct tcphdr *tcp_head;
 
   while (keep) {
-    close(STDOUT_FILENO); /* close stdout, store in pipe*/
     n = recvfrom(listenfd, buf, sizeof(buf), 0, NULL, NULL);
 
     if (errno == EAGAIN || n <= 0) {
       continue; // ignore this
     }
+    dup_stdout(); // dup stdout to pipe
     ++pall_count;
     /* check head Ethernet(14), IP(20), TCP(20)/UDP(8) , ICMP(8)*/
-    printf("--------------\n");
-    printf("%d bytes read\n", n);
+    printff("--------------\n");
+    printff("%d bytes read\n", n);
     if (n < 42) {
-      printf("Incomplete packet\n");
+      printff("Incomplete packet\n");
       ++piv_count;
       drop_buff();
       continue;
@@ -322,16 +341,16 @@ int sniffer(int listenfd, void **arg) {
 
     ip_head = (struct iphdr *)(buf + ETHERNET_HEADSIZE);
     int protocol = handle_ip(ip_head);
-    // printf("protocol %d\n", protocol);
+    // printff("protocol %d\n", protocol);
     if (protocol == ERROR_IPV6) {
       ++piv_count;
-      printf("not support IPv6\n");
+      printff("not support IPv6\n");
       drop_buff();
       continue;
     }
     if (protocol == ERROR_FILTER) {
       ++piv_count;
-      printf("packet drroped by filter\n");
+      printff("packet drroped by filter\n");
       drop_buff();
       continue; // drop
     }
@@ -341,24 +360,24 @@ int sniffer(int listenfd, void **arg) {
     switch (protocol) {
       {
       case TCP_P:
-        printf("Layer-4 protocol %s\n", "TCP");
+        printff("Layer-4 protocol %s\n", "TCP");
         // skip ip header;
         tcp_head = (struct tcphdr *)(buf + ETHERNET_HEADSIZE + IP_HEADSIZE);
         break;
       case UDP_P:
-        printf("Layer-4 protocol %s\n", "UDP");
+        printff("Layer-4 protocol %s\n", "UDP");
         print_buff();
         continue;
       case ICMP_P:
-        printf("Layer-4 protocol %s\n", "ICMP");
+        printff("Layer-4 protocol %s\n", "ICMP");
         print_buff();
         continue;
       case PPTP_P:
-        printf("Layer-4 protocol %s\n", "ICMP");
+        printff("Layer-4 protocol %s\n", "ICMP");
         print_buff();
         continue;
       default:
-        printf("Layer-4 protocol %s\n", " UNKNOWN PROTOCOL");
+        printff("Layer-4 protocol %s\n", " UNKNOWN PROTOCOL");
         print_buff();
         continue;
       }
@@ -369,7 +388,7 @@ int sniffer(int listenfd, void **arg) {
     if (err == ERROR_FILTER) {
       --pv_count;
       ++piv_count;
-      printf("packet drroped by filter\n"); // this will never print to stdout
+      printff("packet drroped by filter\n"); // this will never print to stdout
       drop_buff();
       continue;
     }
@@ -399,7 +418,7 @@ int init_socket(int *sockfd) {
     struct sock_fprog bpf;
     if (valid_argument(protocol)) {
       if (!strcmp(protocol, "tcp")) {
-        printf("tcp only\n");
+        printff("tcp only\n");
         bpf.filter = filter_tcp_code;
         bpf.len = ARRAY_SIZE(filter_tcp_code);
       } else if (!strcmp(protocol, "udp")) {
@@ -436,11 +455,36 @@ int init_socket(int *sockfd) {
   /*set interface to promiscuos*/
   rc = handle_promiscuos(*sockfd);
   if (rc == ERROR_NORMAL) {
-    printf("can't make interface promiscuos\n");
+    printff("can't make interface promiscuos\n");
   }
   return ERROR_NONE;
 error:
   return ERROR_NORMAL;
+}
+
+int handle_main_input(int argc, char **argv) {
+  /* handle input start*/
+  int rc = 0;
+  memset(flags, 0, sizeof(flags));
+  // todo use calloc
+  for (int i = 0; i < 5; i++) {
+    arguments[i] = malloc(sizeof(char) * MAX_STR_INPUT);
+  }
+  rc = handle_input(argc, argv, arguments, flags);
+  if (rc == 1) { /* case command: -v, -h, jus print and exit*/
+    dup2(saved_stdout, STDOUT_FILENO);
+    fflush(stdout);
+    exit(0);
+  }
+
+  if (valid_argument(arguments[SAVE_NUM])) {
+    fp = fopen(arguments[SAVE_NUM], "a");
+    if (!fp) {
+      return ERROR_NORMAL;
+    }
+  }
+  return rc;
+  /* handle input end*/
 }
 
 /**
@@ -456,22 +500,10 @@ error:
         [-h] //help
 **/
 int main(int argc, char *argv[]) {
-  int rc = dup_stdout();
-  check(rc != ERROR_NORMAL, "dup error");
+  int rc = handle_main_input(argc, argv);
+  check(rc != ERROR_NORMAL, "argument error");
 
-  /* handle input start*/
-  memset(flags, 0, sizeof(flags));
-  for (int i = 0; i < 5; i++) {
-    arguments[i] = malloc(sizeof(char) * MAX_STR_INPUT);
-  }
-  rc = handle_input(argc, argv, arguments, flags);
-  if (rc == 1) {
-    dup2(saved_stdout, STDOUT_FILENO);
-    fflush(stdout);
-    return ERROR_NONE;
-  }
-  check(rc != ERROR_NORMAL, "input error");
-  /* handle input end*/
+  saved_stdout = dup(STDOUT_FILENO);
 
   int sockfd;
 
@@ -488,6 +520,9 @@ int main(int argc, char *argv[]) {
 error:
   if (sockfd != ERROR_NORMAL) {
     close(sockfd);
+  }
+  if (fp) {
+    fclose(fp);
   }
   dup2(saved_stdout, STDOUT_FILENO);
   exit(1);
