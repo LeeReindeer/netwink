@@ -67,6 +67,7 @@ static volatile int pall_count = 0, pv_count = 0, piv_count = 0;
 static volatile int keep = 1;
 
 int dup_stdout();
+int open_stdout();
 void drop_buff();
 void print_buff();
 
@@ -245,7 +246,7 @@ error:
  */
 void intHandler(int dummy) {
   keep = 0;
-  dup2(saved_stdout, STDOUT_FILENO); // open stdout
+  open_stdout(); // open stdout
   printff("\n%d packets captured\n%d packets received by filter\n%d packets "
           "dropped by filter\n",
           pall_count, pv_count, piv_count);
@@ -264,6 +265,8 @@ int dup_stdout() {
   }
   return dup2(out_pipe[1], STDOUT_FILENO);
 }
+
+int open_stdout() { return dup2(saved_stdout, STDOUT_FILENO); }
 
 void drop_buff() {
   close(out_pipe[1]);
@@ -297,7 +300,7 @@ void print_buff() {
   read(out_pipe[0], out_buffer,
        MAX_STR_OUTPUT); /* read from pipe into buffer */
 
-  dup2(saved_stdout, STDOUT_FILENO); /* reconnect stdout */
+  open_stdout(); /* reconnect stdout */
   printff("%s", out_buffer);
   save_file(out_buffer);
 
@@ -472,7 +475,7 @@ int handle_main_input(int argc, char **argv) {
   }
   rc = handle_input(argc, argv, arguments, flags);
   if (rc == 1) { /* case command: -v, -h, jus print and exit*/
-    dup2(saved_stdout, STDOUT_FILENO);
+    open_stdout();
     fflush(stdout);
     exit(0);
   }
@@ -524,6 +527,6 @@ error:
   if (fp) {
     fclose(fp);
   }
-  dup2(saved_stdout, STDOUT_FILENO);
+  open_stdout();
   exit(1);
 }
