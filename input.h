@@ -30,6 +30,8 @@ int valid_argument(char *arg);
 uint32_t ipton(char *ip4);
 uint16_t porton(char *port);
 
+void printff(const char *fmt, ...);
+
 char *strlwr(char *in);
 
 #endif // _input_h

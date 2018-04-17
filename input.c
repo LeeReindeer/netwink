@@ -1,4 +1,5 @@
 #include "input.h"
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -86,6 +87,17 @@ uint16_t porton(char *port) {
 void print_help() {
   printf("Usage:\n");
   printf("%s\n", help);
+}
+
+/**
+ * @brief  printf and fflush
+ */
+void printff(const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  vprintf(fmt, args);
+  fflush(stdout);
+  va_end(args);
 }
 
 /**
