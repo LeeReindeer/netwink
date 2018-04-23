@@ -36,7 +36,6 @@ int make_unpromiscuos(int sockfd, char *ethname);
 
 int handle_promiscuos(int sockfd);
 
-// todo save buffer to file
 void save_file(char *buf);
 
 // void ctrlc_cb(evutil_socket_t sig, short events, void *arg);
