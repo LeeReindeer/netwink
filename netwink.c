@@ -177,9 +177,7 @@ char **get_all_interface(int *size) {
 
   /* alloc mem */
   interfaces = (char **)malloc(count * sizeof(char *));
-  for (i = 0; i < count; ++i) {
-    interfaces[i] = malloc(IFNAMSIZ * sizeof(char));
-  }
+  interfaces[0] = calloc(count, IFNAMSIZ * sizeof(char));
 
   const struct ifreq *const end = it + count;
   for (i = 0; it != end; ++it) {
@@ -469,12 +467,11 @@ int handle_main_input(int argc, char **argv) {
   /* handle input start*/
   int rc = 0;
   memset(flags, 0, sizeof(flags));
-  // todo use calloc
-  for (int i = 0; i < 5; i++) {
-    arguments[i] = malloc(sizeof(char) * MAX_STR_INPUT);
-  }
+
+  arguments[0] = calloc(5, sizeof(char) * MAX_STR_INPUT);
+
   rc = handle_input(argc, argv, arguments, flags);
-  if (rc == 1) { /* case command: -v, -h, jus print and exit*/
+  if (rc == 1) { /* case command: -v, -h, just print and exit*/
     open_stdout();
     fflush(stdout);
     exit(0);
