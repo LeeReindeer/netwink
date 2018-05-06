@@ -62,6 +62,8 @@ int out_pipe[2];
 int saved_stdout;
 FILE *fp = NULL;
 
+static int sockfd;
+
 static volatile int pall_count = 0, pv_count = 0, piv_count = 0;
 /* handle ctrl c*/
 static volatile int keep = 1;
@@ -251,6 +253,9 @@ void intHandler(int dummy) {
           pall_count, pv_count, piv_count);
   if (fp) {
     fclose(fp);
+  }
+  if (sockfd != ERROR_NORMAL) {
+    close(sockfd);
   }
   exit(1);
 }
@@ -507,8 +512,6 @@ int main(int argc, char *argv[]) {
   check(rc != ERROR_NORMAL, "argument error");
 
   saved_stdout = dup(STDOUT_FILENO);
-
-  int sockfd;
 
   rc = init_socket(&sockfd);
   check(rc != ERROR_NORMAL, "socket error");
