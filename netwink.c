@@ -177,8 +177,9 @@ char **get_all_interface(int *size) {
 
   /* alloc mem */
   interfaces = (char **)malloc(count * sizeof(char *));
-  interfaces[0] = calloc(count, IFNAMSIZ * sizeof(char));
-
+  for (int i = 0; i < count; i++) {
+    interfaces[i] = calloc(IFNAMSIZ, sizeof(char));
+  }
   const struct ifreq *const end = it + count;
   for (i = 0; it != end; ++it) {
     if (ioctl(sockfd, SIOCGIFFLAGS, it) == 0) {
@@ -468,7 +469,9 @@ int handle_main_input(int argc, char **argv) {
   int rc = 0;
   memset(flags, 0, sizeof(flags));
 
-  arguments[0] = calloc(5, sizeof(char) * MAX_STR_INPUT);
+  for (int i = 0; i < 5; i++) {
+    arguments[i] = calloc(MAX_STR_INPUT, sizeof(char));
+  }
 
   rc = handle_input(argc, argv, arguments, flags);
   if (rc == 1) { /* case command: -v, -h, just print and exit*/

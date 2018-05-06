@@ -1,7 +1,7 @@
 PREFIX?=/usr/local
 CFLAGS=-g -Wall
 LIBS=-levent
-
+cc=gcc
 all: 
 		 cc $(CFLAGS) -c -o input.o input.c
 		 cc $(CFLAGS) netwink.c input.o  -o netwink
