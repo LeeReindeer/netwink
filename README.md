@@ -2,6 +2,13 @@
 
 > I wrote this for computer network course.
 
+## Intro
+
+|      |      |
+| ---- | ---- |
+|input.h/c| handel user input|
+|netwink.h/c|  main sniffer loop and filter configure|
+
 ## Build
 
 ```shell
