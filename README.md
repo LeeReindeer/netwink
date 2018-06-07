@@ -20,7 +20,7 @@ sudo make install
 ## Usage
 
 ```shell
-netwink [-f] [interface name] //restrict interface
+netwink [-f] [interface name] //(not avaliable now)restrict interface
         [-p] [port]//restrict port
         [-i] [IP address]// restrict IP
         [-t] [protocol name]//TCP/UDP/ICMP
@@ -28,6 +28,10 @@ netwink [-f] [interface name] //restrict interface
         [-v] //check version
         [-h] //help
 ```
+
+## To-do
+
+- filter interface name
 
 ## License
 
