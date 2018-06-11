@@ -32,6 +32,7 @@ netwink [-f] [interface name] //(not avaliable now)restrict interface
 ## To-do
 
 - filter interface name
+- make interface out of promiscuous mode after exit netwink.
 
 ## License
 
