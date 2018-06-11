@@ -4,9 +4,9 @@
 // #include <event2/event.h>
 /*for headers*/
 #include <linux/filter.h>
-#include <linux/ip.h>
-#include <linux/tcp.h>
 #include <net/ethernet.h>
+#include <netinet/ip.h>
+#include <netinet/tcp.h>
 
 #define ETHERNET_HEADSIZE sizeof(struct ether_header)
 #define IP_HEADSIZE sizeof(struct iphdr)

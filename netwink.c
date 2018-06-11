@@ -13,9 +13,9 @@
 #include <netinet/in.h>
 
 /*for headers*/
-#include <linux/ip.h>
-#include <linux/tcp.h>
 #include <net/ethernet.h>
+#include <netinet/ip.h>
+#include <netinet/tcp.h>
 /* include event */
 // #include <event2/event.h>
 /* for SIGINT*/
