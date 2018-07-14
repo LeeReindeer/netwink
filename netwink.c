@@ -474,10 +474,6 @@ int handle_main_input(int argc, char **argv) {
   int rc = 0;
   memset(flags, 0, sizeof(flags));
 
-  for (int i = 0; i < 5; i++) {
-    arguments[i] = calloc(MAX_STR_INPUT, sizeof(char));
-  }
-
   rc = handle_input(argc, argv, arguments, flags);
   if (rc == 1) { /* case command: -v, -h, just print and exit*/
     open_stdout();
